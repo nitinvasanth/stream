@@ -3,12 +3,13 @@ package trello
 import (
 	"errors"
 	"fmt"
-	"github.com/merico-dev/stream/internal/pkg/backend"
-	"github.com/merico-dev/stream/internal/pkg/statemanager"
 	"os"
 
 	"github.com/adlio/trello"
+
+	"github.com/merico-dev/stream/internal/pkg/backend"
 	"github.com/merico-dev/stream/internal/pkg/log"
+	"github.com/merico-dev/stream/internal/pkg/statemanager"
 )
 
 type Client struct {
