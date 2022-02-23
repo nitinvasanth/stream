@@ -29,7 +29,9 @@ type Options struct {
 }
 
 type Api struct {
-	Name string
+	Name     string
+	Category string
+	Ident    string
 }
 
 // Workflow is the struct for a GitHub Actions Workflow.

@@ -1,7 +1,10 @@
 package trello
 
 import (
+	"errors"
 	"fmt"
+	"github.com/merico-dev/stream/internal/pkg/backend"
+	"github.com/merico-dev/stream/internal/pkg/statemanager"
 	"os"
 
 	"github.com/adlio/trello"
@@ -44,27 +47,58 @@ func (c *Client) CreateList(board *trello.Board, listName string) (*trello.List,
 	return c.Client.CreateList(board, listName, trello.Defaults())
 }
 
-func (c *Client) GetBoardIdAndListId() (map[string]interface{}, error) {
+func (c *Client) GetBoardIdAndListId(ident, category string) (map[string]interface{}, error) {
+
 	res := make(map[string]interface{})
 
-	bs, err := c.Client.GetMyBoards()
+	boardId, err := genBoardId(ident, category)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, b := range bs {
-		lists, err := b.GetLists()
-		if err != nil {
-			return nil, err
-		}
-		if len(lists) != 3 {
-			log.Errorf("Unknown lists format: len==%d.", len(lists))
-			return nil, fmt.Errorf("unknown lists format: len==%d", len(lists))
-		}
-		res["boardId"] = b.ID
-		res["todoListId"] = lists[0].ID
-		res["doingListId"] = lists[1].ID
-		res["doneListId"] = lists[2].ID
+	b, err := c.Client.GetBoard(boardId)
+	if err != nil {
+		return nil, err
 	}
+
+	lists, err := b.GetLists()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lists) != 3 {
+		log.Errorf("Unknown lists format: len==%d", len(lists))
+		return nil, fmt.Errorf("unknown lists format: len==%d", len(lists))
+	}
+	res["boardId"] = b.ID
+	res["todoListId"] = lists[0].ID
+	res["doingListId"] = lists[1].ID
+	res["doneListId"] = lists[2].ID
+
 	return res, nil
+}
+
+func genBoardId(ident, category string) (string, error) {
+	// use default local backend for now.
+	b, err := backend.GetBackend(backend.BackendLocal)
+	if err != nil {
+		return "", err
+	}
+	// create a state manager using the default local backend
+	smgr, err := statemanager.NewManager(b)
+	if err != nil {
+		log.Debugf("Failed to get the manager. %s", err)
+		return "", err
+	}
+
+	state := smgr.GetState(fmt.Sprintf("%s_%s", ident, category))
+
+	value, ok := state.Resource["boardId"]
+	if ok {
+		if value == "" {
+			return "", errors.New("Board id in trello is empty.")
+		}
+		return fmt.Sprintf("%v", value), nil
+	}
+	return "", errors.New("Got some errors when generate board id form state resource.")
 }
